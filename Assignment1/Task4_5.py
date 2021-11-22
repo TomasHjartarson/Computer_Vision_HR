@@ -1,10 +1,10 @@
-#Libraries the file requires
-#Python does not import twice unless specifically told.
+
 import pyrealsense2 as rs
 import cv2
 import numpy as np
 import time
-#Function file for quality control
+
+#Function file
 from CV_Functions import (Call_repeatedly, 
                         Image_capture,
                         Space_capture,
@@ -84,9 +84,6 @@ if __name__ == "__main__":
         #cv2.circle(color_image, maxLoc, radius, (255, 0, 0), 2)
         
         ############### REDDEST
-        
-        
-        
         HSV = cv2.cvtColor(color_image, cv2.COLOR_BGR2HSV)
         result = color_image.copy()
         lower = np.array([178,25,200])
@@ -95,6 +92,7 @@ if __name__ == "__main__":
         result = cv2.bitwise_and(result, result, mask=mask)
         (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(mask)
         cv2.circle(color_image, maxLoc, radius, (255, 0, 0), 2)
+        
         #-------------------------------------
         #Show RGB image
         cv2.namedWindow('RGB stream', cv2.WINDOW_AUTOSIZE)
