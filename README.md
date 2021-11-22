@@ -1,4 +1,4 @@
-# Computer_Vision_HR
+# T-869-COMP - Computer_Vision_HR
 
 Tómas Helgi Hjartarson
 
