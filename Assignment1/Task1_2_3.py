@@ -1,9 +1,10 @@
-
+#Libraries the file requires
+#Python does not import twice unless specifically told.
 import pyrealsense2 as rs
 import cv2
 import numpy as np
 
-#Function file
+#Function file for quality control
 from CV_Functions import (Call_repeatedly, 
                         Image_capture,
                         Space_capture,
