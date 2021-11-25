@@ -62,16 +62,20 @@ if __name__ == "__main__":
     
     
     # Ransac parameters
-    ransac_iterations = 450  # number of iterations
-    ransac_threshold = 2    # threshold 
-    ransac_ratio = 0.6      # ratio of inliers required to assert that a model fits well to data
-    Samples = 250
+    ransac_iterations = 20  # number of iterations
+    ransac_threshold = 7    # threshold 
+    ransac_ratio = 0.8      # ratio of inliers required to assert that a model fits well to data
+    line_amount = 4
+    
+    Samples = 450
     
     rng = np.random.default_rng()
     Points = np.zeros((2,2))
     
+    Line_points = []
     XYLIST = []
     TEST_samples = []
+    
     model_m = 0.
     model_c = 0.
     
@@ -83,80 +87,99 @@ if __name__ == "__main__":
         if not depth_frame or not color_frame:
             continue
         
+        
         #Convert images to numpy arrays
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
-    
         
         start = time.time()
         #-------------------------------------
         #Edge pixels
-        edges = cv2.Canny(color_image,275,300)
-        
-        
+        edges = cv2.Canny(color_image,200,255,apertureSize = 3)
         
         XYLIST.clear()
-        
         for i in range(edges.shape[0]):
             for j in range(edges.shape[1]):
                 if(edges[i,j] == 255):
                     XYLIST.append([i,j])
         
-        TEST_samples = random.sample(XYLIST,Samples)
         #-------------------------------------
-        #RANSAC 
-        ratio = 0.
-        for it in range(ransac_iterations):
-            rand = rng.integers(0, len(XYLIST), size = 2)
-            
-            P1 = XYLIST[rand[0]]
-            P2 = XYLIST[rand[1]]
-            
-            Points[0,0] = P1[0]
-            Points[0,1] = P1[1]
-            Points[1,0] = P2[0]
-            Points[1,1] = P2[1]
-            m, c = find_line_model(Points)
-            
-            num = 0
-            
-            
-            for ind in range(len(TEST_samples)):
-
-                x0 = TEST_samples[ind][0]
-                y0 = TEST_samples[ind][1]
-
-                x1, y1 = find_intercept_point(m, c, x0, y0)
-    
-                dist = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+        #RANSAC
+        Line_points.clear() 
+        for lines in range(line_amount):
+            TEST_samples = random.sample(XYLIST,Samples)
+            ratio = 0.
+            for it in range(ransac_iterations):
+                rand = rng.integers(0, len(XYLIST), size = 2)
                 
-                if dist < ransac_threshold:
-                    num += 1
-        
-            if num/float(Samples) > ratio:
-                ratio = num/float(Samples)
-                model_m = m
-                model_c = c
-                Stored_P1 = P1
-                Stored_P2 = P2
+                P1 = XYLIST[rand[0]]
+                P2 = XYLIST[rand[1]]
                 
-            if num > Samples*ransac_ratio:
-                print("DONE")
-                break
-    
+                Points[0,0] = P1[0]
+                Points[0,1] = P1[1]
+                Points[1,0] = P2[0]
+                Points[1,1] = P2[1]
+                m, c = find_line_model(Points)
+                
+                num = 0
+                inlier_list = []
+                
+                for ind in range(len(TEST_samples)):
+
+                    x0 = TEST_samples[ind][0]
+                    y0 = TEST_samples[ind][1]
+
+                    x1, y1 = find_intercept_point(m, c, x0, y0)
         
+                    dist = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+                    
+                    if dist < ransac_threshold:
+                        num += 1
+                        inlier_list.append(TEST_samples[ind])
+                
+                if num/float(Samples) > ratio:
+                    ratio = num/float(Samples)
+                    model_m = m
+                    model_c = c
+                    Stored_P1 = P1
+                    Stored_P2 = P2
+                    
+                if num > Samples*ransac_ratio:
+                    print("DONE")
+                    break
+        
+            if(lines == 0):
+                Line_points.insert(0, [Stored_P1,Stored_P2])
+            elif(lines == 1):
+                Line_points.insert(1, [Stored_P1,Stored_P2])
+            elif(lines == 2):
+                Line_points.insert(2, [Stored_P1,Stored_P2])
+            else:
+                Line_points.insert(3, [Stored_P1,Stored_P2])                        
+
+            print(len(inlier_list))
+            for element in inlier_list:
+                    XYLIST.remove(element)
+                
+                    
         #-------------------------------------
         #Show RGB image
         cv2.namedWindow('RGB stream', cv2.WINDOW_AUTOSIZE)
-        cv2.line(color_image, Stored_P1, Stored_P2, color = (255,0,0), thickness = 3)
+        cv2.line(color_image,Line_points[0][0],Line_points[0][1], color = (255,0,0), thickness = 3)
+        cv2.line(color_image,Line_points[1][0],Line_points[1][1], color = (0,255,0), thickness = 3)
+        cv2.line(color_image,Line_points[2][0],Line_points[2][1], color = (0,0,255), thickness = 3)
+        cv2.line(color_image,Line_points[3][0],Line_points[3][1], color = (255,0,255), thickness = 3)
         cv2.imshow('RGB stream', color_image)
+        
+        
+        
         #-------------------------------------
         #Show edge image
         
         cv2.namedWindow('edges stream', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('edges stream', edges)
         end = time.time()
-        print(end-start)
+        #print(end-start)
         
         k = cv2.waitKey(1)
                 

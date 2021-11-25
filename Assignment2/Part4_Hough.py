@@ -29,6 +29,23 @@ def find_intercept_point(m, c, x0, y0):
     return x, y
 
 
+#Intersection calculation
+def line_intersection(line1, line2):
+    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+
+    def det(a, b):
+        return a[0] * b[1] - a[1] * b[0]
+
+    div = det(xdiff, ydiff)
+    if div == 0:
+       return -1,-1
+
+    d = (det(*line1), det(*line2))
+    x = (int) (det(d, xdiff) / div)
+    y = (int) (det(d, ydiff) / div)
+    return x, y
+
 """ MAIN
 ---------------------------------------------------------------------------
 """
@@ -61,20 +78,12 @@ if __name__ == "__main__":
     pipeline.start(config)
     
     
-    # Ransac parameters
-    ransac_iterations = 450  # number of iterations
-    ransac_threshold = 2    # threshold 
-    ransac_ratio = 0.6      # ratio of inliers required to assert that a model fits well to data
-    Samples = 250
     
-    rng = np.random.default_rng()
-    Points = np.zeros((2,2))
+    intersection_points = []
+    Line_points = []
+    line_amount = 4
     
-    XYLIST = []
-    TEST_samples = []
-    model_m = 0.
-    model_c = 0.
-    
+
     while True:
               
         frames = pipeline.wait_for_frames()
@@ -83,80 +92,69 @@ if __name__ == "__main__":
         if not depth_frame or not color_frame:
             continue
         
+        
         #Convert images to numpy arrays
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
-    
         
         start = time.time()
         #-------------------------------------
         #Edge pixels
-        edges = cv2.Canny(color_image,275,300)
+        edges = cv2.Canny(color_image,100,200,apertureSize = 3)
+        lines = cv2.HoughLines(edges,1,np.pi/180,50)
         
-        
-        
-        XYLIST.clear()
-        
-        for i in range(edges.shape[0]):
-            for j in range(edges.shape[1]):
-                if(edges[i,j] == 255):
-                    XYLIST.append([i,j])
-        
-        TEST_samples = random.sample(XYLIST,Samples)
-        #-------------------------------------
-        #RANSAC 
-        ratio = 0.
-        for it in range(ransac_iterations):
-            rand = rng.integers(0, len(XYLIST), size = 2)
-            
-            P1 = XYLIST[rand[0]]
-            P2 = XYLIST[rand[1]]
-            
-            Points[0,0] = P1[0]
-            Points[0,1] = P1[1]
-            Points[1,0] = P2[0]
-            Points[1,1] = P2[1]
-            m, c = find_line_model(Points)
-            
-            num = 0
-            
-            
-            for ind in range(len(TEST_samples)):
+        Line_points.clear()
+        intersection_points.clear()
+        for i in range(line_amount):
+            for rho,theta in lines[i]:
+                    a = np.cos(theta)
+                    b = np.sin(theta)
+                    x0 = a*rho
+                    y0 = b*rho
+                    x1 = int(x0 + 1000*(-b))
+                    y1 = int(y0 + 1000*(a))
+                    x2 = int(x0 - 1000*(-b))
+                    y2 = int(y0 - 1000*(a))
+                    
+                    Stored_P1 = [x1,y1]
+                    Stored_P2 = [x2,y2]
+                    cv2.line(color_image,(x1,y1),(x2,y2),(0,0,255),2)
+                    
+                            
+                    if(i == 0):
+                        Line_points.insert(0, [Stored_P1,Stored_P2])
+                    elif(i == 1):
+                        Line_points.insert(1, [Stored_P1,Stored_P2])
+                    elif(i == 2):
+                        Line_points.insert(2, [Stored_P1,Stored_P2])
+                    else:
+                        Line_points.insert(3, [Stored_P1,Stored_P2])      
 
-                x0 = TEST_samples[ind][0]
-                y0 = TEST_samples[ind][1]
-
-                x1, y1 = find_intercept_point(m, c, x0, y0)
-    
-                dist = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
-                
-                if dist < ransac_threshold:
-                    num += 1
-        
-            if num/float(Samples) > ratio:
-                ratio = num/float(Samples)
-                model_m = m
-                model_c = c
-                Stored_P1 = P1
-                Stored_P2 = P2
-                
-            if num > Samples*ransac_ratio:
-                print("DONE")
-                break
-    
-        
+        intersection_points.append(line_intersection(Line_points[0],Line_points[1]))
+        intersection_points.append(line_intersection(Line_points[0],Line_points[2]))
+        intersection_points.append(line_intersection(Line_points[0],Line_points[3]))
+        intersection_points.append(line_intersection(Line_points[1],Line_points[2]))
+        intersection_points.append(line_intersection(Line_points[1],Line_points[3]))
+        intersection_points.append(line_intersection(Line_points[2],Line_points[3]))
+            
+        print(intersection_points)
         #-------------------------------------
         #Show RGB image
         cv2.namedWindow('RGB stream', cv2.WINDOW_AUTOSIZE)
-        cv2.line(color_image, Stored_P1, Stored_P2, color = (255,0,0), thickness = 3)
+        for j in range(6):
+            if(intersection_points[j] != [-1,-1]):
+                color_image = cv2.circle(color_image, intersection_points[j], 10, [255,0,255], thickness = -1)
         cv2.imshow('RGB stream', color_image)
+        
+        
+        
         #-------------------------------------
         #Show edge image
         
         cv2.namedWindow('edges stream', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('edges stream', edges)
         end = time.time()
-        print(end-start)
+        #print(end-start)
         
         k = cv2.waitKey(1)
                 
