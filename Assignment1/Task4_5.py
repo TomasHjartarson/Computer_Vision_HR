@@ -18,7 +18,7 @@ from CV_Functions import (Call_repeatedly,
 #text on images
 font = cv2.FONT_HERSHEY_SIMPLEX
 FPS = 30
-radius = 10
+radius = 25
 if __name__ == "__main__":
     
     #Hardware rest if desired, uncomment the line below    
@@ -78,15 +78,15 @@ if __name__ == "__main__":
         
         start = time.time()
         ############### BRIGHTNESS
-        #gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
-        #gray = cv2.GaussianBlur(gray, (radius, radius), 0)
-        #(minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
-        #cv2.circle(color_image, maxLoc, radius, (255, 0, 0), 2)
+        gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (radius, radius), 0)
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
+        cv2.circle(color_image, maxLoc, radius, (255, 0, 0), 2)
         
         ############### REDDEST
         
         
-        
+        """
         HSV = cv2.cvtColor(color_image, cv2.COLOR_BGR2HSV)
         result = color_image.copy()
         lower = np.array([170,50,50])   
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         result = cv2.bitwise_and(HSV, HSV, mask=mask)
         (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result[:,:,1])
         cv2.circle(color_image, maxLoc, radius, (255, 0, 0), 2)
-        
+        """
         #-------------------------------------
         #Show RGB image
         cv2.namedWindow('RGB stream', cv2.WINDOW_AUTOSIZE)
